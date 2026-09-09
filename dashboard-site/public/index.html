@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAFE Dataverse Dashboard</title>
+<meta name="description" content="Interactive summary of the CAFE Research Coordinating Center collection on Harvard Dataverse.">
+<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22&gt;&lt;text y=%2226%22 font-size=%2228%22&gt;&#127758;&lt;/text&gt;&lt;/svg&gt;">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="index.html">CAFE Dataverse <span>Dashboard</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Overview</a>
+      <a href="explorer.html">Explorer</a>
+      <a href="collections.html">Collections</a>
+      <a href="similarity.html">Similarity</a>
+      <a href="methods.html">Methods</a>
+    </nav>
+    <button type="button" class="theme-toggle" data-theme-toggle>Dark</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="page-head">
+    <h1>The CAFE collection at a glance</h1>
+    <p>
+      The BUSPH&ndash;HSPH CAFE Research Coordinating Center collection on
+      <a href="https://dataverse.harvard.edu/dataverse.xhtml?alias=CAFE" rel="noopener" target="_blank">Harvard Dataverse</a>,
+      summarised across its dataset-level metadata. Every figure on this page excludes
+      unpublished drafts.
+    </p>
+  </div>
+
+  <div id="scope-callout"></div>
+
+  <div class="grid cols-4" id="tiles" style="margin-bottom:8px"></div>
+  <div class="grid cols-4" id="tiles-2"></div>
+
+  <section class="section">
+    <h2>Where the datasets live</h2>
+    <p class="section-note">
+      Datasets reach the CAFE collection three ways, and all three count as part of it:
+      they are owned by a collection in the CAFE tree, linked in individually, or sit in
+      a whole collection that is linked into CAFE.
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>Datasets per subcollection</h3><div class="chart-actions"></div></header>
+        <p class="card-note">Top 18 of <span id="subcollection-count">&mdash;</span> subcollections holding at least one published dataset.</p>
+        <div class="chart tall" id="chart-subcollections"></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="card">
+          <header><h3>Deposited locally or harvested</h3><div class="chart-actions"></div></header>
+          <p class="card-note">
+            Harvested datasets are indexed from another repository. They carry no local
+            publication date, which is why several panels on this site have a smaller
+            denominator than the collection.
+          </p>
+          <div class="chart" id="chart-origin" style="min-height:150px"></div>
+        </div>
+        <div class="card">
+          <header><h3>Route into the CAFE collection</h3><div class="chart-actions"></div></header>
+          <p class="card-note">
+            A dataset can be owned by a CAFE collection, linked in on its own, or carried
+            in as part of a whole collection linked into CAFE.
+          </p>
+          <div class="chart" id="chart-membership" style="min-height:180px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Subjects</h2>
+    <p class="section-note" id="subject-note"></p>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>Datasets per subject</h3><div class="chart-actions"></div></header>
+        <p class="card-note">The <code>N/A</code> placeholder is excluded from this chart and reported beside it.</p>
+        <div class="chart tall" id="chart-subjects"></div>
+      </div>
+      <div class="card">
+        <header><h3>Deposits per year</h3><div class="chart-actions"></div></header>
+        <p class="card-note" id="year-note"></p>
+        <div class="chart tall" id="chart-years"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Shape of the collection</h2>
+    <p class="section-note" id="shape-note"></p>
+    <div class="grid cols-4">
+      <div class="card">
+        <header><h3>Size</h3><div class="chart-actions"></div></header>
+        <div class="chart" id="chart-hist-size"></div>
+      </div>
+      <div class="card">
+        <header><h3>Files</h3><div class="chart-actions"></div></header>
+        <div class="chart" id="chart-hist-files"></div>
+      </div>
+      <div class="card">
+        <header><h3>Keywords</h3><div class="chart-actions"></div></header>
+        <div class="chart" id="chart-hist-keywords"></div>
+      </div>
+      <div class="card">
+        <header><h3>Authors</h3><div class="chart-actions"></div></header>
+        <div class="chart" id="chart-hist-authors"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Per-dataset summary statistics</h2>
+    <p class="section-note" id="numeric-note"></p>
+    <div class="card">
+      <div class="table-wrap" id="numeric-table"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Most-used keywords and most prolific authors</h2>
+    <p class="section-note">
+      Both are parsed rather than taken as stored. Keywords are case-folded and
+      whitespace-collapsed; descriptor labels such as <em>Federal Agency</em> are removed
+      from author lists before counting. The <a href="explorer.html">Explorer</a> shows
+      both under any filter.
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>Top keywords</h3><div class="chart-actions"></div></header>
+        <div class="chart tall" id="chart-keywords"></div>
+      </div>
+      <div class="card">
+        <header><h3>Top authors</h3><div class="chart-actions"></div></header>
+        <div class="chart tall" id="chart-authors"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <p id="footer-provenance">&nbsp;</p>
+    <p>
+      Built from a SQL extract of the Harvard Dataverse application database.
+      <a href="methods.html">How these numbers were produced</a> &middot;
+      <a href="https://github.com/climate-cafe/dv-dashboard" rel="noopener" target="_blank">Source</a>
+    </p>
+  </div>
+</footer>
+
+<script src="assets/vendor/echarts.min.js"></script>
+<script type="module" src="assets/js/overview.js"></script>
+</body>
+</html>

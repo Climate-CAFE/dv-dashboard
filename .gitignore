@@ -1,3 +1,13 @@
+# Project data files
+dv-data/*
+
+# macOS Finder metadata
+.DS_Store
+
+# Agent metadata
+STATUS.md
+TASKS.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -216,3 +226,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- dashboard-site -------------------------------------------------------
+# Regenerable intermediates shared between the R and Python halves.
+dashboard-site/analysis/derived/
+# Raw Harvard Dataverse API responses and the full description text. Public
+# metadata, but bulk, and re-fetchable with `just fetch`.
+dashboard-site/cache/
+# renv's project library. renv.lock is the manifest and IS committed.
+dashboard-site/renv/library/
+dashboard-site/renv/staging/
+dashboard-site/.Rproj.user/

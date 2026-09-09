@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Similarity &middot; CAFE Dataverse Dashboard</title>
+<meta name="description" content="Datasets positioned by keyword and description similarity, with the method selectable and documented.">
+<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22&gt;&lt;text y=%2226%22 font-size=%2228%22&gt;&#127758;&lt;/text&gt;&lt;/svg&gt;">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="index.html">CAFE Dataverse <span>Dashboard</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Overview</a>
+      <a href="explorer.html">Explorer</a>
+      <a href="collections.html">Collections</a>
+      <a href="similarity.html">Similarity</a>
+      <a href="methods.html">Methods</a>
+    </nav>
+    <button type="button" class="theme-toggle" data-theme-toggle>Dark</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="page-head">
+    <h1>Semantic similarity</h1>
+    <p>
+      Every published dataset placed so that similar ones sit near each other. Choose what
+      &ldquo;similar&rdquo; means from the dropdowns: two dimensions, three methods each.
+      The reasoning behind the selected method, including what it gets wrong, is printed
+      below the plot. Click any point to see the dataset and its nearest neighbours under
+      that method.
+    </p>
+  </div>
+
+  <form class="filterbar" id="controls" aria-label="Similarity options">
+    <div class="filter-row">
+      <div class="field">
+        <label for="dimension">Similarity dimension</label>
+        <select id="dimension">
+          <option value="keyword">Keyword similarity</option>
+          <option value="description">Description similarity</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="method">Method</label>
+        <select id="method"></select>
+      </div>
+      <div class="field">
+        <label for="projection">Layout</label>
+        <select id="projection">
+          <option value="tsne">t-SNE (neighbourhoods)</option>
+          <option value="mds">Classical MDS (distances)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="colour">Colour by</label>
+        <select id="colour">
+          <option value="none">Nothing (one colour)</option>
+          <option value="cluster">Cluster</option>
+          <option value="sub">Subcollection</option>
+          <option value="origin">Deposited or harvested</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="find">Find a dataset</label>
+        <input type="search" id="find" placeholder="Type part of a title" autocomplete="off" list="title-list">
+        <datalist id="title-list"></datalist>
+      </div>
+    </div>
+    <div class="filter-summary" id="controls-summary" role="status" aria-live="polite"></div>
+  </form>
+
+  <div class="grid" style="grid-template-columns: minmax(0, 2.2fr) minmax(260px, 1fr); gap:16px">
+    <div class="card">
+      <header>
+        <h3 id="plot-title">Similarity map</h3>
+        <div class="chart-actions"></div>
+      </header>
+      <p class="card-note" id="plot-note"></p>
+      <div class="chart xtall" id="chart-scatter"></div>
+      <div class="legend" id="scatter-legend"></div>
+    </div>
+
+    <div class="detail" id="detail">
+      <p class="detail-empty">Click a point, or search above, to see the dataset and its nearest neighbours under the selected method.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <h2>How this method works</h2>
+    <p class="section-note">
+      Written next to the implementation in
+      <code>analysis/python/cafedash/similarity.py</code> and carried into the data file,
+      so the text and the code cannot drift apart.
+    </p>
+    <div class="card">
+      <div class="prose" id="justification"></div>
+    </div>
+  </section>
+
+  <section class="section" id="terms-section" hidden>
+    <h2 id="terms-heading">What the model found</h2>
+    <p class="section-note" id="terms-note"></p>
+    <div class="card">
+      <div class="table-wrap" id="terms-table"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Diagnostics</h2>
+    <p class="section-note">
+      Parameters and fit statistics for the selected method. The silhouette width measures
+      how well the clusters separate under this metric: it runs from &minus;1 to 1, and
+      values near 0 mean the collection is a continuum rather than a set of distinct
+      groups. Text collections usually are, so a low value here is a description of the
+      data and not a defect.
+    </p>
+    <div class="card">
+      <div class="table-wrap" id="diagnostics-table"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <p id="footer-provenance">&nbsp;</p>
+    <p><a href="methods.html">Provenance, limitations and how to rerun the analysis</a></p>
+  </div>
+</footer>
+
+<script src="assets/vendor/echarts.min.js"></script>
+<script type="module" src="assets/js/similarity.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+[project]
+name = "cafe-dv-dashboard"
+version = "0.1.0"
+description = "Analysis pipeline for the CAFE RCC Dataverse Collection dashboard"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "scikit-learn>=1.5",
+    "pandas>=2.2",
+    "httpx>=0.27",
+    "tenacity>=9.0",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+# The scripts add analysis/python/ to sys.path before importing, so tell isort
+# that cafedash is ours and belongs in the first-party group.
+known-first-party = ["cafedash"]
+
+[tool.pytest.ini_options]
+pythonpath = ["analysis/python"]
+testpaths = ["tests"]

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methods &middot; CAFE Dataverse Dashboard</title>
+<meta name="description" content="Where the numbers come from, what they exclude, and how to reproduce them.">
+<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22&gt;&lt;text y=%2226%22 font-size=%2228%22&gt;&#127758;&lt;/text&gt;&lt;/svg&gt;">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="index.html">CAFE Dataverse <span>Dashboard</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Overview</a>
+      <a href="explorer.html">Explorer</a>
+      <a href="collections.html">Collections</a>
+      <a href="similarity.html">Similarity</a>
+      <a href="methods.html">Methods</a>
+    </nav>
+    <button type="button" class="theme-toggle" data-theme-toggle>Dark</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="page-head">
+    <h1>Methods and provenance</h1>
+    <p>
+      Where every number on this site comes from, what it excludes, what could not be
+      answered, and how to reproduce it. If something here contradicts a chart, this page
+      is the one to trust: it is written from the scripts.
+    </p>
+  </div>
+
+  <section class="section">
+    <h2>The one thing to know before reading any chart</h2>
+    <div class="callout caution">
+      <strong>&ldquo;Published&rdquo; is not the same as &ldquo;visible&rdquo;.</strong>
+      Harvested datasets are indexed from other repositories and are fully visible to
+      users, but they carry no local publication date. Filtering on
+      <code>publication date is not null</code> silently drops
+      <span id="harvested-share">39%</span> of the live collection. Everything on this site
+      uses <code>published locally OR harvested</code> as the test for whether a dataset is
+      live. The consequence shows up wherever a panel needs a publication
+      <em>date</em> rather than a publication <em>fact</em>: deposit timelines cover
+      <span id="dated-count">794</span> datasets, not all <span id="live-count">1,307</span>.
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Scope</h2>
+    <p class="section-note">
+      The extract covers the CAFE collection and everything linked into it. Drafts are
+      excluded from this dashboard, as <code>SETUP.md</code> requires.
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>What is counted</h3></header>
+        <div class="table-wrap" id="scope-table"></div>
+      </div>
+      <div class="card">
+        <header><h3>Three ways a dataset reaches CAFE</h3></header>
+        <div class="prose">
+          <p>All three count as part of the collection, and the site's
+          &ldquo;subcollection&rdquo; stratifier resolves each to a collection inside the
+          CAFE tree:</p>
+          <ul>
+            <li><strong>Owned</strong> &mdash; the dataset lives in a CAFE-subtree collection.</li>
+            <li><strong>Linked in</strong> &mdash; it lives elsewhere and is linked into a
+              CAFE collection individually. Its own collection alias is outside CAFE, so
+              the subcollection shown is the CAFE collection it is linked into.</li>
+            <li><strong>In a linked collection</strong> &mdash; its owning collection, or an
+              ancestor, is linked into CAFE, so the whole collection browses under CAFE.
+              Resolved by walking its ancestry against the collection-link table.</li>
+          </ul>
+          <p>Collection links are followed one hop only. Following them transitively would
+          make &ldquo;under CAFE&rdquo; effectively unbounded.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Where the data comes from</h2>
+    <p class="section-note">
+      Two sources, for a reason worth stating plainly.
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>1. A SQL extract of the Harvard Dataverse database</h3></header>
+        <div class="prose">
+          <p>
+            The primary source: 44 tab-delimited extracts pulled on
+            <span id="extract-date">2026-09-08</span> from the Dataverse application
+            database, scoped to CAFE by a query pack whose own scope was reconciled
+            against Harvard Dataverse's public search index exactly &mdash; 794 published
+            plus 513 harvested equals the 1,307 the index reports.
+          </p>
+          <p>
+            The set on disk is the <strong>no-personal-data subset</strong>. Nine of the 53
+            produced extracts contained email addresses and were withheld: 1.4, 1.5a, 1.5b,
+            1.7, 2.3, 2.5a, 2.13b, 2.13c, 3.1 and 4.1d. Most of those addresses were not in
+            columns whose names suggested them; five were found only by scanning the files.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>2. Harvard Dataverse's public Search API</h3></header>
+        <div class="prose">
+          <p>
+            Withholding 1.4 and 1.7 also removed the only copy of the dataset
+            <strong>descriptions</strong>, which the required description-similarity
+            analysis cannot be done without. They were re-acquired from the public,
+            unauthenticated, read-only Search API, which also supplies parsed author lists,
+            author affiliations and time-period-covered.
+          </p>
+          <p>
+            Email-typed and contact fields are dropped before anything is written, and any
+            address a depositor typed into free text is redacted by pattern. The fetch
+            refuses to finish if one survives.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <header><h3>What the API could and could not supply</h3></header>
+      <p class="card-note">
+        Requesting the citation metadata block returns <code>IndexOutOfBoundsException</code>
+        for individual records, and the failures are not random: <strong>every harvested
+        record fails</strong>. The fetch bisects around them, so the affected datasets keep
+        everything the plain search result gives and simply lack the citation-block fields.
+        The dataset export endpoint is not a fallback: it returns 403 to anonymous clients.
+      </p>
+      <div class="table-wrap" id="coverage-table"></div>
+      <p class="coverage-note">
+        The site prints the denominator wherever it shows a partially covered field. A
+        42%-covered field is never charted as if it described the collection.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>The pipeline</h2>
+    <p class="section-note">
+      Every number shown here is produced by a script that runs on its own, in R or in
+      Python, without the site running. The site's JavaScript filters, sorts and draws; it
+      computes no statistics. R does the descriptive layer and Python does the
+      semantic-similarity layer, so each half is reviewable by whoever reads that language.
+    </p>
+    <div class="card">
+      <div class="table-wrap" id="pipeline-table"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Decisions that change a number</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>Authors</h3></header>
+        <div class="prose">
+          <p>
+            Parsed from the API's author list, one entry per author, rather than by
+            splitting a joined string. Descriptor labels &mdash; <em>Federal Agency</em>,
+            <em>N/A</em>, <em>Various</em> and others listed in
+            <code>config/dashboard-config.yml</code> &mdash; are removed before counting.
+          </p>
+          <p>
+            Matching is on the <strong>whole trimmed string</strong>, case-insensitively,
+            never as a substring. A substring rule would delete <em>Industry Canada</em>
+            along with <em>Industry</em>. <span id="dropped-labels"></span>
+          </p>
+          <p>
+            Per-author totals count a dataset once for each of its authors, so they sum to
+            more than the collection totals. That is what a per-author view means, and the
+            tables say so rather than presenting it as a partition.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Keywords</h3></header>
+        <div class="prose">
+          <p>
+            Taken from the extract that stores one row per value, not from the joined
+            string, so a keyword containing a semicolon survives. Whitespace is collapsed
+            and case folded; placeholders such as <em>n/a</em> are dropped.
+          </p>
+          <p>
+            The display spelling is the most common original, except that an all-capital
+            spelling longer than five characters loses to any mixed-case variant &mdash;
+            otherwise one depositor who shouts every keyword sets the label for everyone.
+            Short all-caps strings are left alone, because they are usually acronyms.
+          </p>
+          <p>
+            Counts are cross-checked against the extract's own keyword census; the pipeline
+            warns if the two parsings disagree.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Subjects</h3></header>
+        <div class="prose">
+          <p>
+            <code>N/A</code> is not a subject. Dataverse assigns it to records arriving
+            without one, which is nearly every harvested record, and it accounts for
+            <span id="na-share">39%</span> of the distribution. It is reported separately
+            and left out of the subject chart. A chart built without this adjustment puts a
+            non-category second from the top and misleads.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Files, sizes and usage</h3></header>
+        <div class="prose">
+          <p>
+            File counts and sizes measure the <strong>latest released version only</strong>.
+            Superseded versions are not counted and draft-only datasets are excluded, so
+            this is what is published rather than what is stored. It is the wrong number to
+            size a migration with.
+          </p>
+          <p>
+            Downloads are guestbook rows collapsed to dataset-level events: a zip download
+            of N files writes N rows, deduplicated per actor per minute. Views come from
+            Make Data Count as monthly aggregates. They are different mechanisms and are
+            never added into a single &ldquo;usage&rdquo; number.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Three questions the database cannot answer</h2>
+    <p class="section-note">
+      From the original request sheet. Each is documented at the point of use rather than
+      quietly approximated.
+    </p>
+    <div class="grid cols-3">
+      <div class="card">
+        <header><h3>Search-term frequency</h3></header>
+        <div class="prose">
+          <p>
+            Dataverse stores user searches nowhere. Its action log records commands, not
+            searches, and search queries never reach the database at all. Real answers need
+            web server access logs, the analytics tag, or search-engine request logging.
+          </p>
+          <p>
+            The keyword and title-term frequencies on this site are <strong>content
+            proxies</strong>: they describe what the collection contains, not what anyone
+            looked for.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Views by individual user</h3></header>
+        <div class="prose">
+          <p>
+            View counts come from Make Data Count as monthly aggregates by country and
+            agent type. Unique-view <em>counts</em> exist; viewer identities are not
+            recorded anywhere in the schema.
+          </p>
+          <p>
+            The nearest per-user records are explore and preview events, which only fire
+            for external tools and cover a small fraction of activity.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <header><h3>Location of the contributor</h3></header>
+        <div class="prose">
+          <p>
+            There is no such field. Linking a contributor to a place would need the
+            depositor's account record, and the user table has no link to a collection, so
+            &ldquo;users of CAFE&rdquo; is not a question it can answer.
+          </p>
+          <p>
+            The site shows the three things that <em>do</em> exist, labelled distinctly and
+            never combined: where the data is about, where viewers are, and what
+            institution an author gave. The last is the nearest proxy and it is an
+            institution, not a place.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Privacy</h2>
+    <div class="card">
+      <div class="prose">
+        <p>
+          This repository is public, so two rules apply to everything committed.
+        </p>
+        <p>
+          <strong>No personal data.</strong> The extract set on disk already excludes the
+          nine outputs carrying email addresses. The API fetch drops contact and
+          email-typed fields and redacts free-text addresses before writing. Depositor
+          usernames, which the master extract carries, are dropped in the first analysis
+          script rather than merely left unselected later. Contributor counts are
+          published; contributor names are not.
+        </p>
+        <p>
+          <strong>Small cells are suppressed where they could identify.</strong> Views by
+          country are published at the collection level, where they aggregate over every
+          dataset. The per-dataset breakdown is suppressed below five datasets per cell: a
+          single view from one country on a niche dataset is potentially identifying. This
+          is a policy judgement, and it is recorded here so it can be revisited rather than
+          rediscovered.
+        </p>
+        <p>
+          <strong>No bulk data.</strong> The extract set and the API response cache are both
+          excluded from version control. What is committed is the aggregated payload the
+          site draws, plus one row per published dataset carrying public metadata and a
+          truncated description snippet.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Reproducing this</h2>
+    <div class="card">
+      <div class="prose">
+        <p>From <code>dashboard-site/</code>, with the extract set present at
+        <code>../dv-data/</code>:</p>
+        <pre style="background:var(--surface-sunken);padding:12px 14px;border-radius:6px;overflow-x:auto;font-size:0.82rem"><code>just setup     # restore the R and Python environments
+just fetch     # re-acquire public metadata from Harvard Dataverse
+just build     # run the full pipeline, R then Python
+just serve     # preview the site at http://localhost:8000
+just check     # lint, tests, and the privacy scan</code></pre>
+        <p>
+          Any single step runs on its own. <code>Rscript analysis/R/04-keywords.R</code>
+          rebuilds just the keyword summaries;
+          <code>uv run python analysis/python/11_keyword_similarity.py</code> rebuilds just
+          the keyword similarity. Each script's header says what it reads and what it
+          writes.
+        </p>
+        <p>
+          The pipeline is deterministic. Every projection and factorisation is seeded from
+          <code>config/dashboard-config.yml</code>, no method downloads a model, and
+          rerunning without changing the inputs reproduces the same files.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Known limitations</h2>
+    <div class="card">
+      <div class="prose" id="limitations"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <p id="footer-provenance">&nbsp;</p>
+    <p>
+      <a href="https://github.com/climate-cafe/dv-dashboard" rel="noopener" target="_blank">Source and issue tracker</a>
+      &middot;
+      <a href="https://dataverse.harvard.edu/dataverse.xhtml?alias=CAFE" rel="noopener" target="_blank">The CAFE collection on Harvard Dataverse</a>
+    </p>
+  </div>
+</footer>
+
+<script type="module" src="assets/js/methods.js"></script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+# CAFE Dataverse Dashboard -- command surface.
+#
+#   just            list every recipe
+#   just setup      restore the R and Python environments
+#   just build      run the whole pipeline
+#   just serve      preview the site locally
+#   just check      lint, tests and the privacy scan
+#
+# Every recipe here is a thin wrapper. Anything it runs can be run directly,
+# which is the point: `just build` is a convenience, not the only door in.
+
+set shell := ["bash", "-uc"]
+
+r := "Rscript"
+py := "uv run python"
+
+default:
+    @just --list --unsorted
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+
+# Restore both environments from their lockfiles.
+setup: setup-python setup-r
+    @echo "Environments ready. Next: just fetch && just build"
+
+setup-python:
+    uv sync
+
+setup-r:
+    {{r}} -e 'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv"); renv::restore(prompt = FALSE)'
+
+# Re-pin the R dependencies. Always run both steps: renv records every
+# package's full DESCRIPTION, including maintainer email addresses, and the
+# sanitiser trims that back to the fields restore actually uses.
+lock:
+    {{r}} -e 'renv::snapshot(prompt = FALSE)'
+    {{r}} analysis/R/sanitize-renv-lock.R
+    {{r}} -e 'stopifnot(isTRUE(renv::status()$synchronized))'
+
+# ---------------------------------------------------------------------------
+# Pipeline
+# ---------------------------------------------------------------------------
+
+# Needs network. Caches under cache/, so a second run is free.
+# Re-acquire public metadata from Harvard Dataverse.
+fetch:
+    {{py}} analysis/python/10_fetch_public_metadata.py
+
+# Re-fetch every page, ignoring the cache.
+refetch:
+    {{py}} analysis/python/10_fetch_public_metadata.py --refresh
+
+# The full pipeline: R descriptives, then Python similarity.
+build: build-r build-python
+    @echo ""
+    @echo "Site data written to public/data/. Preview with: just serve"
+
+# The R half. 01 must run first; the rest are independent.
+build-r:
+    {{r}} analysis/R/run-all.R
+
+# The Python half. Requires `just fetch` to have run at least once.
+build-python:
+    {{py}} analysis/python/11_keyword_similarity.py
+    {{py}} analysis/python/12_description_similarity.py
+
+# Rebuild from nothing: fetch, then everything.
+rebuild: fetch build
+
+# ---------------------------------------------------------------------------
+# Preview
+# ---------------------------------------------------------------------------
+
+# Serve public/ locally. This is what GitHub Pages will publish.
+serve port="8000":
+    @echo "http://localhost:{{port}}  (ctrl-c to stop)"
+    cd public && python3 -m http.server {{port}}
+
+# ---------------------------------------------------------------------------
+# Checks
+# ---------------------------------------------------------------------------
+
+check: lint test check-privacy
+    @echo ""
+    @echo "All checks passed."
+
+lint:
+    uv run ruff check analysis/ tests/
+    uv run ruff format --check analysis/ tests/
+
+fmt:
+    uv run ruff format analysis/ tests/
+    uv run ruff check --fix analysis/ tests/
+
+test:
+    uv run pytest -q
+
+# Scan everything git tracks for personal data. The last gate before a push.
+check-privacy:
+    #!/usr/bin/env bash
+    # This repository is public, and the underlying extracts are known to carry
+    # email addresses in columns whose names give no hint: five of the nine
+    # affected extracts were found only by reading the files. So this reads the
+    # files rather than trusting the schema.
+    set -uo pipefail
+    # --cached AND --others --exclude-standard: everything git tracks now, plus
+    # everything it WOULD track on the next `git add`. Scanning only the former
+    # passes vacuously before the first commit, which is exactly when a mistake
+    # is most likely to slip in.
+    pattern='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+    files=$(git -C .. ls-files --cached --others --exclude-standard -- dashboard-site)
+    count=$(echo "$files" | grep -c . || true)
+    echo "Scanning $count files for email addresses..."
+    if [ "$count" -eq 0 ]; then
+        echo "FAIL: nothing to scan; check that this is running inside the repository"
+        exit 1
+    fi
+    hits=$(echo "$files" | while read -r f; do
+        [ -f "../$f" ] && grep -HEo "$pattern" "../$f" 2>/dev/null
+    done | grep -v 'noreply' || true)
+    if [ -n "$hits" ]; then
+        echo "FAIL: email addresses found in files git tracks or would track:"
+        echo "$hits" | head -20
+        exit 1
+    fi
+    echo "  no email addresses in $count files"
+    echo "Checking that bulk data is not tracked..."
+    if git -C .. ls-files --error-unmatch dashboard-site/cache >/dev/null 2>&1; then
+        echo "FAIL: cache/ is tracked; it holds the full description text"
+        exit 1
+    fi
+    if git -C .. ls-files --error-unmatch dashboard-site/analysis/derived >/dev/null 2>&1; then
+        echo "FAIL: analysis/derived/ is tracked; it is a regenerable intermediate"
+        exit 1
+    fi
+    echo "  cache/ and analysis/derived/ are untracked"
+
+# Report the size of what gets published.
+size:
+    @echo "public/data:"
+    @du -sh public/data 2>/dev/null || true
+    @ls -lhS public/data | head -12
+    @echo ""
+    @echo "public/ total:"
+    @du -sh public
