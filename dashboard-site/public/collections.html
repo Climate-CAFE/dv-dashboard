@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collection tree &middot; CAFE Dataverse Dashboard</title>
+<meta name="description" content="The CAFE collection hierarchy, with every subcollection scaled by its holdings.">
+<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22&gt;&lt;text y=%2226%22 font-size=%2228%22&gt;&#127758;&lt;/text&gt;&lt;/svg&gt;">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="index.html">CAFE Dataverse <span>Dashboard</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Overview</a>
+      <a href="explorer.html">Explorer</a>
+      <a href="collections.html">Collections</a>
+      <a href="similarity.html">Similarity</a>
+      <a href="methods.html">Methods</a>
+    </nav>
+    <button type="button" class="theme-toggle" data-theme-toggle>Dark</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="page-head">
+    <h1>The collection tree</h1>
+    <p>
+      CAFE holds <span id="collection-count">&mdash;</span> collections nested up to
+      <span id="max-depth">&mdash;</span> levels deep. Both diagrams below are drawn from the
+      same roll-up, computed in <code>analysis/R/05-collections.R</code>, and both scale
+      every subcollection by its holdings.
+    </p>
+  </div>
+
+  <form class="filterbar" id="controls" aria-label="Tree options">
+    <div class="filter-row">
+      <div class="field">
+        <label id="measure-label">Scale by</label>
+        <div class="toggle-group" role="group" aria-labelledby="measure-label" id="measure-toggles">
+          <button type="button" class="chip" data-measure="datasets" aria-pressed="true">Datasets</button>
+          <button type="button" class="chip" data-measure="files" aria-pressed="false">Files</button>
+          <button type="button" class="chip" data-measure="bytes" aria-pressed="false">Size</button>
+          <button type="button" class="chip" data-measure="views" aria-pressed="false">Views</button>
+        </div>
+      </div>
+      <div class="field">
+        <label id="basis-label">Count</label>
+        <div class="toggle-group" role="group" aria-labelledby="basis-label" id="basis-toggles">
+          <button type="button" class="chip" data-basis="cumulative" aria-pressed="true">Including descendants</button>
+          <button type="button" class="chip" data-basis="direct" aria-pressed="false">This collection only</button>
+        </div>
+      </div>
+      <div class="field">
+        <label id="empty-label">Empty collections</label>
+        <div class="toggle-group" role="group" aria-labelledby="empty-label" id="empty-toggles">
+          <button type="button" class="chip" data-empty="show" aria-pressed="true">Show</button>
+          <button type="button" class="chip" data-empty="hide" aria-pressed="false">Hide</button>
+        </div>
+      </div>
+    </div>
+    <div class="filter-summary" id="controls-summary" role="status" aria-live="polite"></div>
+  </form>
+
+  <div class="callout" id="basis-note"></div>
+
+  <section class="section">
+    <h2>Dendrogram</h2>
+    <p class="section-note">
+      The hierarchy as it is: every collection under CAFE, positioned by its parent, with
+      the node scaled to its holdings and shaded by how deep it sits. Node area is
+      proportional to the measure, so a collection with four times the datasets has four
+      times the area. Click a node to collapse or expand its branch; drag to pan.
+    </p>
+    <div class="card">
+      <header><h3>CAFE subtree</h3><div class="chart-actions"></div></header>
+      <div class="chart xtall" id="chart-tree"></div>
+      <div class="legend" id="depth-legend" aria-label="Depth"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Treemap</h2>
+    <p class="section-note">
+      The same tree with area doing all the work. A dendrogram makes the structure legible
+      but gives a collection of four datasets nearly as much room as one of five hundred;
+      a treemap gives every collection exactly its share of the rectangle, at the cost of
+      showing the nesting only through containment. Neither is the better diagram, which
+      is why both are here.
+    </p>
+    <div class="card">
+      <header><h3>Share of the collection</h3><div class="chart-actions"></div></header>
+      <div class="chart xtall" id="chart-treemap"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Every collection</h2>
+    <p class="section-note" id="table-note"></p>
+    <div class="card">
+      <div class="table-wrap" id="collections-table"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <p id="footer-provenance">&nbsp;</p>
+    <p><a href="methods.html">How these numbers were produced</a></p>
+  </div>
+</footer>
+
+<script src="assets/vendor/echarts.min.js"></script>
+<script type="module" src="assets/js/collections.js"></script>
+</body>
+</html>

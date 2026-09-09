@@ -1,0 +1,106 @@
+# Publish the dashboard to https://climate-cafe.github.io/dv-dashboard
+#
+# This file has to live at .github/workflows/ in the repository root: GitHub
+# only reads workflows from there. Everything else this project owns is under
+# dashboard-site/, and dashboard-site/deploy/README.md explains the exception
+# and how to keep the two in step.
+#
+# WHAT THIS DOES, AND WHAT IT DELIBERATELY DOES NOT
+# -------------------------------------------------
+# It publishes dashboard-site/public/ exactly as committed. It does NOT run the
+# analysis pipeline, because the pipeline reads dv-data/, which is gitignored
+# pending a decision on how that data will be shared. The generated payload in
+# public/data/ is committed for the same reason.
+#
+# So the deploy is a copy, and the contract is: whoever changes the analysis
+# runs `just build` locally and commits public/data/ alongside the code. The
+# freshness check below fails the build if the committed data is missing or
+# empty, which is the failure this arrangement is actually exposed to.
+#
+# Once dv-data/ has a permanent home -- SETUP.md leaves that open, with
+# publication to Dataverse as one option -- this workflow can fetch it and run
+# `just build` here instead. The pipeline is already deterministic and its only
+# network dependency is the public Harvard Dataverse API.
+
+name: Deploy dashboard to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard-site/public/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. Queued rather than cancelled, so a push that lands
+# during a deploy still publishes rather than being silently dropped.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the committed site data is present and non-trivial
+        run: |
+          set -euo pipefail
+          cd dashboard-site/public
+          missing=0
+          for f in scope.json datasets.json overview.json authors.json keywords.json \
+                   collections.json temporal.json geography.json files-usage.json \
+                   similarity-keyword.json similarity-description.json; do
+            if [ ! -s "data/$f" ]; then
+              echo "::error::data/$f is missing or empty. Run 'just build' and commit public/data/."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+          echo "All site data present ($(du -sh data | cut -f1))."
+
+      - name: Check no email addresses are being published
+        run: |
+          set -uo pipefail
+          hits=$(grep -rEoh '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
+                   dashboard-site/public 2>/dev/null | grep -v noreply || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Email addresses found in files about to be published:"
+            echo "$hits" | head -20
+            exit 1
+          fi
+          echo "No email addresses in the published payload."
+
+      - name: Run the data contract tests
+        run: |
+          set -euo pipefail
+          cd dashboard-site
+          pipx install uv 2>/dev/null || pip install --user uv
+          uv sync --frozen
+          uv run pytest -q
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard-site/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

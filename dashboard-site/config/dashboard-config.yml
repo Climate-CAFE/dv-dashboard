@@ -1,0 +1,179 @@
+# Shared configuration for the CAFE Dataverse dashboard pipeline.
+#
+# Read by both the R scripts (analysis/R/) and the Python scripts
+# (analysis/python/). Every tunable that changes a published number lives here
+# so the R and Python halves cannot drift apart.
+
+# ---------------------------------------------------------------------------
+# Paths. Relative to the dashboard-site/ root unless noted.
+# ---------------------------------------------------------------------------
+paths:
+  # The SQL extract set. Relative to the *repository* root, because dv-data/
+  # sits outside dashboard-site/ and is gitignored pending a decision on how
+  # it will be shared (SETUP.md, "Data").
+  extracts: "../dv-data/cafe-extracts-2026-09-08-no-personal-data"
+  extract_prefix: "hdv-sql-query-request-sheet-"
+  cache: "cache"              # gitignored: raw API responses, full description text
+  derived: "analysis/derived" # gitignored: intermediates shared between R and Python
+  site_data: "public/data"    # committed: everything the published site loads
+
+# ---------------------------------------------------------------------------
+# Analysis population.
+# ---------------------------------------------------------------------------
+scope:
+  # SETUP.md: "make note of whether any of the datasets included in the results
+  # are drafts (i.e., unpublished) and exclude them from analysis."
+  exclude_drafts: true
+
+  # A dataset is live if it has been published locally OR is harvested.
+  # Harvested datasets carry a NULL publication date but are fully visible:
+  # 513 of 1,307, 39% of live content. Testing `first_published != ""` alone
+  # silently drops all of them. See dv-data/README.md, "Scope verification".
+  discoverable_rule: "first_published is not empty OR is_harvested"
+
+  # Dataverse assigns this subject to records arriving without one, typically
+  # harvested OAI metadata. It is 39% of the subject distribution and is not a
+  # subject. Charted separately, never as a category.
+  subject_placeholder: "N/A"
+
+# ---------------------------------------------------------------------------
+# Public metadata re-acquisition.
+#
+# The extract set on disk is the "no-personal-data" subset: 9 of the 53 outputs
+# carried email addresses and were withheld. That removes 1.4 and 1.7, which
+# are where dataset descriptions live. Descriptions are required by SETUP.md
+# ("Semantic embeddings and similarity analysis"), so they are re-acquired from
+# Harvard Dataverse's public read-only Search API.
+# ---------------------------------------------------------------------------
+api:
+  base_url: "https://dataverse.harvard.edu/api/search"
+  subtree: "CAFE"
+  per_page: 100
+  metadata_fields: "citation:*"
+  # Seconds to pause between pages. The API is public and unauthenticated;
+  # this keeps the pipeline a polite client.
+  delay_seconds: 0.5
+  timeout_seconds: 120
+  max_attempts: 5
+  # Concurrent in-flight requests during the citation pass. That pass has to
+  # split around records the API cannot serve (see 10_fetch_public_metadata.py),
+  # which multiplies the request count; a small pool keeps the wall time
+  # reasonable without hammering a public endpoint.
+  concurrency: 4
+  citation_chunk: 25
+  user_agent: "cafe-dv-dashboard/0.1 (+https://github.com/climate-cafe/dv-dashboard)"
+
+  # Field types dropped at fetch time so no address is ever written to disk.
+  # Mirrors the `mv.fieldtype <> 'EMAIL'` filter the SQL pack applies, and
+  # Dataverse's own :ExcludeEmailFromExport behaviour.
+  drop_field_types: ["EMAIL"]
+  drop_field_names:
+    - datasetContact
+    - datasetContactEmail
+    - datasetContactName
+    - datasetContactAffiliation
+
+# ---------------------------------------------------------------------------
+# Author parsing.
+#
+# SETUP.md: '"Federal Agency" is not a unique author, but a descriptor label,
+# and should be ignored during author parsing.'
+#
+# These are matched case-insensitively against the whole trimmed author string,
+# never as substrings: "National Aeronautics and Space Administration (NASA)"
+# must survive a rule that removes "Federal Agency".
+# ---------------------------------------------------------------------------
+authors:
+  descriptor_labels:
+    - "Federal Agency"
+    - "Federal Agencies"
+    - "State Agency"
+    - "Local Agency"
+    - "International Agency"
+    - "Non-Governmental Organization"
+    - "NGO"
+    - "Academic Institution"
+    - "Research Institution"
+    - "Private Sector"
+    - "Industry"
+    - "Intergovernmental Organization"
+    - "N/A"
+    - "NA"
+    - "None"
+    - "Unknown"
+    - "Anonymous"
+    - "Not Applicable"
+    - "Various"
+    - "Multiple"
+
+  # Separators used when falling back to splitting a joined author string
+  # (extract 2.9's `authors` column). The API's parsed author list is preferred
+  # and this fallback only applies where the API returned nothing.
+  split_pattern: "\\s*;\\s*|\\s*,\\s+and\\s+|\\s+and\\s+"
+
+  # An author name shorter than this after trimming is treated as noise.
+  min_name_chars: 2
+
+# ---------------------------------------------------------------------------
+# Keyword parsing.
+# ---------------------------------------------------------------------------
+keywords:
+  # Extract 2.15 joins keywords with "; ". Extract 2.14a has them one per row,
+  # which is the preferred source; 2.15 is the fallback.
+  split_pattern: "\\s*;\\s*"
+  # Case-folded and whitespace-collapsed before counting, matching 4.1b.
+  normalize: true
+  min_chars: 2
+  # Dropped outright: placeholders, not keywords.
+  stoplist: ["n/a", "na", "none", "unknown", "not applicable", "-", "--"]
+
+# ---------------------------------------------------------------------------
+# Semantic similarity.
+#
+# Every method here is deterministic and dependency-light: no model download,
+# no network call, no GPU. An auditor can rerun any of them from a plain Python
+# session. Justification strings shown beneath each plot live in
+# analysis/python/cafedash/similarity.py next to the implementations.
+# ---------------------------------------------------------------------------
+similarity:
+  random_seed: 20260908
+  n_neighbors: 12          # nearest neighbours stored per dataset per metric
+  min_datasets: 5          # refuse to project fewer than this
+
+  keyword:
+    methods: ["jaccard", "tfidf_cosine", "ppmi_svd"]
+    tfidf_min_df: 2
+    ppmi_dims: 96
+    ppmi_shift: 1.0
+
+  description:
+    methods: ["tfidf_cosine", "lsa_cosine", "nmf_topics"]
+    max_features: 40000
+    min_df: 3
+    max_df: 0.5
+    ngram_max: 2
+    lsa_dims: 160
+    nmf_topics: 24
+    snippet_chars: 320
+
+  projection:
+    method: "tsne"          # "tsne" or "pca"; both are emitted
+    tsne_perplexity: 30
+    tsne_iterations: 1000
+    tsne_learning_rate: "auto"
+    clusters: 10            # k for the cluster-colouring option
+    # Agglomerative linkage. "complete" resists the chaining that makes
+    # "average" and "single" put ~90% of datasets in one cluster; see the
+    # measured comparison in cafedash/similarity.py, cluster().
+    linkage: "complete"
+
+# ---------------------------------------------------------------------------
+# Site build.
+# ---------------------------------------------------------------------------
+site:
+  title: "CAFE Dataverse Dashboard"
+  base_url: "https://climate-cafe.github.io/dv-dashboard"
+  collection_url: "https://dataverse.harvard.edu/dataverse.xhtml?alias=CAFE"
+  # Datasets carried in the row-level explorer payload. Kept as a guard: if the
+  # collection grows past this, revisit whether the payload should be split.
+  max_explorer_rows: 5000

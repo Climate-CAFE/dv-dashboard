@@ -1,0 +1,25 @@
+{
+  "generated": "2026-09-09T02:14:00Z",
+  "extract_date": "2026-09-08",
+  "scope": {
+    "in_scope_total": 1852,
+    "discoverable": 1307,
+    "published_locally": 794,
+    "harvested": 513,
+    "drafts_excluded": 545,
+    "with_unreleased_draft_version": 274
+  },
+  "note": "Drafts are excluded from every figure on this site. A dataset counts as live if it has been published locally OR is harvested: harvested datasets carry no publication date but are fully visible, and are 39% of live content.",
+  "subcollections": 28,
+  "collections_in_tree": 56,
+  "coverage": {
+    "total": 1307,
+    "keywords": 1177,
+    "authors": 1272,
+    "affiliations": 422,
+    "time_period": 556,
+    "geography": 407,
+    "description": 1307,
+    "citation_block": 721
+  }
+}

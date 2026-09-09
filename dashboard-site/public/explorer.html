@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data explorer &middot; CAFE Dataverse Dashboard</title>
+<meta name="description" content="Filter the CAFE collection by subcollection, origin and route, and see every summary update.">
+<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22&gt;&lt;text y=%2226%22 font-size=%2228%22&gt;&#127758;&lt;/text&gt;&lt;/svg&gt;">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="brand" href="index.html">CAFE Dataverse <span>Dashboard</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Overview</a>
+      <a href="explorer.html">Explorer</a>
+      <a href="collections.html">Collections</a>
+      <a href="similarity.html">Similarity</a>
+      <a href="methods.html">Methods</a>
+    </nav>
+    <button type="button" class="theme-toggle" data-theme-toggle>Dark</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="page-head">
+    <h1>Data explorer</h1>
+    <p>
+      Filter the collection and every summary below re-aggregates against the same
+      slice. With all filters cleared, the totals here equal the
+      <a href="index.html">Overview</a> exactly &mdash; that agreement is checked by a test
+      in the repository, and it is what keeps this page a view of the analysis rather
+      than a second, competing one.
+    </p>
+  </div>
+
+  <!-- One filter row above everything it scopes. -->
+  <form class="filterbar" id="filters" aria-label="Filter datasets">
+    <div class="filter-row">
+      <div class="field">
+        <label for="q">Search title, keyword or author</label>
+        <input type="search" id="q" name="q" placeholder="e.g. heat, mortality, NASA" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label id="origin-label">Origin</label>
+        <div class="toggle-group" role="group" aria-labelledby="origin-label" id="origin-toggles">
+          <button type="button" class="chip" data-origin="all" aria-pressed="true">All</button>
+          <button type="button" class="chip" data-origin="local" aria-pressed="false">Deposited</button>
+          <button type="button" class="chip" data-origin="harvested" aria-pressed="false">Harvested</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="route-label">Route into CAFE</label>
+        <div class="toggle-group" role="group" aria-labelledby="route-label" id="route-toggles">
+          <button type="button" class="chip" data-route="all" aria-pressed="true">All</button>
+          <button type="button" class="chip" data-route="owned" aria-pressed="false">Owned</button>
+          <button type="button" class="chip" data-route="linked" aria-pressed="false">Linked in</button>
+          <button type="button" class="chip" data-route="linked_collection" aria-pressed="false">Linked collection</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="year-min">Published from</label>
+        <select id="year-min"><option value="">Any year</option></select>
+      </div>
+      <div class="field">
+        <label for="year-max">to</label>
+        <select id="year-max"><option value="">Any year</option></select>
+      </div>
+
+      <div class="field">
+        <label id="sub-label">Subcollections <span class="pill" id="sub-state">all</span></label>
+        <div class="checklist" id="sub-checklist" role="group" aria-labelledby="sub-label"></div>
+        <div class="toggle-group" style="margin-top:6px">
+          <button type="button" class="chip" id="sub-all">Select all</button>
+          <button type="button" class="chip" id="sub-none">Clear</button>
+          <button type="button" class="chip" id="sub-invert">Invert</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>&nbsp;</label>
+        <button type="button" class="chip" id="reset">Reset all filters</button>
+      </div>
+    </div>
+
+    <div class="filter-summary" id="summary" role="status" aria-live="polite"></div>
+  </form>
+
+  <div class="grid cols-4" id="tiles"></div>
+
+  <section class="section">
+    <h2>Distributions under this filter</h2>
+    <p class="section-note">
+      Four views of the current slice. Each redraws as the filter changes; each has a
+      table twin behind the <em>Table</em> button.
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <header><h3>Datasets per subcollection</h3><div class="chart-actions"></div></header>
+        <div class="chart tall" id="chart-sub"></div>
+      </div>
+      <div class="card">
+        <header><h3>Deposits per year</h3><div class="chart-actions"></div></header>
+        <p class="card-note">Harvested datasets carry no publication date and are absent from this chart.</p>
+        <div class="chart tall" id="chart-year"></div>
+      </div>
+      <div class="card">
+        <header><h3>Top keywords</h3><div class="chart-actions"></div></header>
+        <div class="chart tall" id="chart-kw"></div>
+      </div>
+      <div class="card">
+        <header><h3>Top authors</h3><div class="chart-actions"></div></header>
+        <p class="card-note">Descriptor labels such as <em>Federal Agency</em> are removed before counting.</p>
+        <div class="chart tall" id="chart-auth"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Stratified summary</h2>
+    <p class="section-note">
+      The same slice, grouped by any of the stratifiers. Rows count each dataset once per
+      group it belongs to, so a dataset with four keywords appears in four keyword rows;
+      the totals therefore exceed the dataset count for any multi-valued stratifier.
+    </p>
+    <div class="card">
+      <header>
+        <h3>Group by</h3>
+        <div class="chart-actions">
+          <div class="toggle-group" id="strat-toggles" role="group" aria-label="Stratify by"></div>
+        </div>
+      </header>
+      <p class="card-note" id="strat-note"></p>
+      <div class="table-wrap" id="strat-table"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Datasets</h2>
+    <p class="section-note" id="table-note"></p>
+    <div class="card">
+      <header>
+        <h3>Matching datasets</h3>
+        <div class="chart-actions">
+          <label class="sr-only" for="sort">Sort by</label>
+          <select id="sort" style="font:inherit;font-size:0.8rem;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary)">
+            <option value="views">Most viewed</option>
+            <option value="downloads">Most downloaded</option>
+            <option value="bytes">Largest</option>
+            <option value="files">Most files</option>
+            <option value="year">Newest</option>
+            <option value="title">Title A&ndash;Z</option>
+          </select>
+        </div>
+      </header>
+      <div class="table-wrap" id="dataset-table"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <p id="footer-provenance">&nbsp;</p>
+    <p>
+      Filtering and re-aggregation happen in the browser; every parsed value shown here
+      was produced by a script under <code>analysis/</code>.
+      <a href="methods.html">Methods</a>
+    </p>
+  </div>
+</footer>
+
+<script src="assets/vendor/echarts.min.js"></script>
+<script type="module" src="assets/js/explorer.js"></script>
+</body>
+</html>
